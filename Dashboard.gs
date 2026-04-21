@@ -4,6 +4,7 @@ function updateDashboard() {
   getExpenseStats();
   getCashStats();
   getProfitStats();
+  getVATStats();
 }
 
 
@@ -140,4 +141,32 @@ function getProfitStats() {
   if (expenses > 0) {
     dashboard.getRange("B27").setValue(profit / expenses);
   }
+}
+
+
+// VAT 
+function getVATStats(){
+
+const ss = SpreadsheetApp.getActive();
+
+const vat = ss.getSheetByName("VAT").getDataRange().getValues();
+
+let incoming = 0;
+let outgoing = 0;
+let payable = 0;
+
+vat.slice(1).forEach(row =>{
+
+incoming += Number(row[2]) || 0;
+outgoing += Number(row[3]) || 0;
+payable += Number(row[4]) || 0;
+
+});
+
+const dashboard = ss.getSheetByName(SHEETS.DASHBOARD);
+
+dashboard.getRange("B30").setValue(incoming);
+dashboard.getRange("B31").setValue(outgoing);
+dashboard.getRange("B32").setValue(payable);
+
 }

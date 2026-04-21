@@ -10,5 +10,6 @@ const SHEETS = {
   EXPENSES: "Expenses",
   BANK: "Bank Accounts",
   CASHFLOW: "Cash Flow",
-  DASHBOARD: "Dashboard"
+  DASHBOARD: "Dashboard",
+  VAT : "VAT"
 };

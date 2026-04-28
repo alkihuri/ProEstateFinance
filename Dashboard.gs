@@ -75,7 +75,7 @@ function getExpenseStats() {
   let totalContracts = 0;
   let totalPaid = 0;
 
-  budget.slice(1).forEach(row => totalBudget += Number(row[8]) || 0);
+  budget.slice(1).forEach(row => totalBudget += Number(row[7]) || 0);
   contracts.slice(1).forEach(row => totalContracts += Number(row[4]) || 0);
   expenses.slice(1).forEach(row => totalPaid += Number(row[6]) || 0);
 

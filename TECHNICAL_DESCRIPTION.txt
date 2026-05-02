@@ -1,0 +1,13 @@
+Нужно спроектировать SaaS/Google Sheets + Apps Script систему финансового управления для девелоперских проектов (developer project control / construction ERP light).
+
+Цель системы: Создать управленческую систему, где в реальном времени видно:
+
+cash flow по каждому проекту и по компании поступления от клиентов выплаты подрядчикам остатки на счетах обязательства клиентов и подрядчиков бюджет vs факт прогноз до завершения проекта прибыльность и KPI объекта Архитектура модулей:
+
+Projects реестр объектов инвестиционный план плановая выручка продаваемая площадь стадии проекта Units Sales CRM квартиры / паркинги / коммерция статусы продаж клиенты договоры payment schedules дебиторка и просрочки Client Payments учет всех поступлений платежный календарь aging receivables cash inflow analytics Budget / Cost Control импорт детальной сметы из Excel (BOQ/Estimate) бюджет по статьям и work packages budget vs actual cost per sqm variance analysis Contractors / Contracts Два уровня: detailed estimate items aggregated contract packages Связь: budget items -> contract package -> payments Expenses / AP платежи подрядчикам обязательства contract burn-down % освоения договора forecast payables Banking / Treasury multiple bank accounts balances liquidity position currency balances Cash Flow Engine monthly cash flow cumulative cash flow liquidity forecast funding need to completion VAT Module (важно) input VAT по подрядчикам output VAT по клиентам monthly VAT position cumulative VAT tracking VAT payable/refundable per project KPI Dashboard Показывать: revenue collected vs contracted actual cost committed cost net cash flow cost to complete profitability ROI sales % budget execution % Monthly Reporting Автоматические management reports: inflows/outflows overruns overdue receivables high-risk contracts liquidity forecast Automation (AI only as helper) AI/Gemini использовать только для: parsing bank emails transaction categorization summaries НЕ использовать AI для финансовой логики. Tech Stack предпочтительно:
+
+Google Sheets as data model Apps Script backend dashboards automation optional evolution into SaaS app Нужно спроектировать:
+
+Data architecture (tables/schema) Relationships between modules Google Sheets structure Apps Script architecture Dashboard structure MVP roadmap Scalable SaaS architecture later Система должна быть похожа на lightweight ERP для девелопера: смесь project controls + treasury + construction cost control + sales finance. Главный принцип: в любой момент за 30 секунд понимать:
+
+сколько денег пришло сколько ушло сколько есть кто должен заплатить кому должны мы сколько денег нужно до завершения зарабатывает проект или нет

@@ -14,8 +14,7 @@ function updateContracts() {
 
   expenses.slice(1).forEach(row => {
     const contractId = row[4];
-    const amount = Number(row[6]) || 0;
-    const paymentDate = Date(row[7])
+    const amount = Number(row[6]) || 0; 
     const status = row[7];
 
     // только оплаченные
@@ -48,7 +47,7 @@ function updateContracts() {
       percent = paid / contractAmount;
     }
 
-    var status = percent >= 1.0;
+    var status = percent >= 1.0 ? "Completed" : "Active";
 
     result.push([
       paid,

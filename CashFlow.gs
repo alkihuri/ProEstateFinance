@@ -10,46 +10,65 @@ function generateCashFlow() {
 
   let cashflow = {};
 
-  // ===== Поступления =====
+  // =========================
+  // INFLOWS (CLIENT PAYMENTS)
+  // =========================
   payments.slice(1).forEach(row => {
     const date = row[1];
-    const amount = Number(row[5]);
-    const confirmed = row[9]; // "да/нет"
- 
+    const amount = Number(row[5]) || 0;
+    const confirmed = row[8]; // ✅ FIX: confirmed в колонке 8 (не 9!)
+
+    // ❗ ФИЛЬТР: только подтвержденные платежи
+    if (!(confirmed === true || confirmed === "Yes")) return;
+
+    if (!date || amount === 0) return;
 
     const d = new Date(date);
     if (isNaN(d)) return;
 
     const month = formatMonth(d);
 
-    if (!cashflow[month]) cashflow[month] = { income: 0, expense: 0 };
+    if (!cashflow[month]) {
+      cashflow[month] = { income: 0, expense: 0 };
+    }
 
     cashflow[month].income += amount;
   });
 
-  // ===== Расходы =====
+  // =========================
+  // OUTFLOWS (EXPENSES)
+  // =========================
   expenses.slice(1).forEach(row => {
-    const date = row[8];
-    const amount = Number(row[6]);
-    const status = row[7]; // статус
+    const date = row[8];     // Payment Date
+    const amount = Number(row[6]) || 0;
+    const status = row[7];   // Status
 
-    //if (!date || status !== "Verified") return;
+    // ❗ ФИЛЬТР: только реально оплаченные
+    if (status !== "Paid") return;
+
+    if (!date || amount === 0) return;
 
     const d = new Date(date);
     if (isNaN(d)) return;
 
     const month = formatMonth(d);
 
-    if (!cashflow[month]) cashflow[month] = { income: 0, expense: 0 };
+    if (!cashflow[month]) {
+      cashflow[month] = { income: 0, expense: 0 };
+    }
 
     cashflow[month].expense += amount;
   });
 
-  // ===== Сортировка месяцев =====
+  // =========================
+  // SORT MONTHS
+  // =========================
   const months = Object.keys(cashflow).sort();
 
-// ===== Generating a table =====
-let result = [["Month", "Opening", "Income", "Expense", "Net", "Closing"]];
+  // =========================
+  // BUILD TABLE
+  // =========================
+  let result = [["Month", "Opening", "Income", "Expense", "Net", "Closing","Verifying"]];
 
   let balance = 0;
 
@@ -58,16 +77,20 @@ let result = [["Month", "Opening", "Income", "Expense", "Net", "Closing"]];
     const expense = cashflow[month].expense;
     const net = income - expense;
 
-    const start = balance;
-    const end = start + net;
+    const opening = balance;
+    const closing = opening + net;
 
-    result.push([month, start, income, expense, net, end]);
+    var confirmed = (opening + income-expense) == closing; // VERIFYING LOGIC
 
-    balance = end;
+    result.push([month, opening, income, expense, net, closing,confirmed]);
+
+    balance = closing;
   });
 
-  // ===== Запись в таблицу =====
-  cfSheet.clear();
+  // =========================
+  // WRITE TO SHEET
+  // =========================
+  cfSheet.clearContents(); // ❗ лучше чем clear()
   cfSheet.getRange(1, 1, result.length, result[0].length).setValues(result);
 }
 

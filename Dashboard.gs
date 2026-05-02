@@ -1,4 +1,5 @@
 function updateDashboard() {
+  // Главный оркестратор — порядок важен
   getProjectOverview();
   getSalesStats();
   getExpenseStats();
@@ -8,7 +9,9 @@ function updateDashboard() {
 }
 
 
+// =========================
 // PROJECT OVERVIEW
+// =========================
 
 function getProjectOverview() {
   const ss = SpreadsheetApp.getActive();
@@ -34,7 +37,9 @@ function getProjectOverview() {
 
 
 
+// =========================
 // SALES & CLIENTS
+// =========================
 
 function getSalesStats() {
   const ss = SpreadsheetApp.getActive();
@@ -45,24 +50,39 @@ function getSalesStats() {
   let totalSales = 0;
   let totalReceived = 0;
 
+  // 👉 Revenue (contracted sales)
   sales.slice(1).forEach(row => {
-    totalSales += Number(row[4]) || 0;
+    const price = Number(row[4]) || 0;
+    const status = row[8];
+
+    // считаем только подписанные сделки
+    if (status === "Signed" || status === "Closed") {
+      totalSales += price;
+    }
   });
 
+  // 👉 Cash received (ВАЖНО: только confirmed)
   payments.slice(1).forEach(row => {
-    totalReceived += Number(row[5]) || 0;
+    const amount = Number(row[5]) || 0;
+    const confirmed = row[8];
+
+    if (confirmed === true || confirmed === "Yes") {
+      totalReceived += amount;
+    }
   });
 
   const dashboard = ss.getSheetByName(SHEETS.DASHBOARD);
 
-  dashboard.getRange("B7").setValue(totalSales);
-  dashboard.getRange("B8").setValue(totalReceived);
-  dashboard.getRange("B9").setValue(totalSales - totalReceived);
+  dashboard.getRange("B7").setValue(totalSales);        // Revenue
+  dashboard.getRange("B8").setValue(totalReceived);     // Cash received
+  dashboard.getRange("B9").setValue(totalSales - totalReceived); // Receivables
 }
 
 
 
+// =========================
 // EXPENSES & CONTRACTS
+// =========================
 
 function getExpenseStats() {
   const ss = SpreadsheetApp.getActive();
@@ -75,9 +95,25 @@ function getExpenseStats() {
   let totalContracts = 0;
   let totalPaid = 0;
 
-  budget.slice(1).forEach(row => totalBudget += Number(row[7]) || 0);
-  contracts.slice(1).forEach(row => totalContracts += Number(row[4]) || 0);
-  expenses.slice(1).forEach(row => totalPaid += Number(row[6]) || 0);
+  // Budget (факт)
+  budget.slice(1).forEach(row => {
+    totalBudget += Number(row[7]) || 0;
+  });
+
+  // Contracts (обязательства)
+  contracts.slice(1).forEach(row => {
+    totalContracts += Number(row[4]) || 0;
+  });
+
+  // Paid expenses (ВАЖНО: только оплаченные)
+  expenses.slice(1).forEach(row => {
+    const amount = Number(row[6]) || 0;
+    const status = row[7];
+
+    if (status === "Paid") {
+      totalPaid += amount;
+    }
+  });
 
   const dashboard = ss.getSheetByName(SHEETS.DASHBOARD);
 
@@ -89,48 +125,66 @@ function getExpenseStats() {
 
 
 
+// =========================
 // CASH POSITION
+// =========================
 
 function getCashStats() {
   const ss = SpreadsheetApp.getActive();
 
   const bank = ss.getSheetByName(SHEETS.BANK).getDataRange().getValues();
-  const sales = ss.getSheetByName(SHEETS.SALES).getDataRange().getValues();
   const payments = ss.getSheetByName(SHEETS.PAYMENTS).getDataRange().getValues();
-  const contracts = ss.getSheetByName(SHEETS.CONTRACTS).getDataRange().getValues();
   const expenses = ss.getSheetByName(SHEETS.EXPENSES).getDataRange().getValues();
 
   let cash = 0;
-  let totalSales = 0;
   let received = 0;
-  let totalContracts = 0;
   let paid = 0;
 
-  bank.slice(1).forEach(row => cash += Number(row[4]) || 0);
-  sales.slice(1).forEach(row => totalSales += Number(row[4]) || 0);
-  payments.slice(1).forEach(row => received += Number(row[5]) || 0);
-  contracts.slice(1).forEach(row => totalContracts += Number(row[4]) || 0);
-  expenses.slice(1).forEach(row => paid += Number(row[6]) || 0);
+  // Остатки на счетах
+  bank.slice(1).forEach(row => {
+    cash += Number(row[4]) || 0;
+  });
+
+  // Полученные деньги
+  payments.slice(1).forEach(row => {
+    const amount = Number(row[5]) || 0;
+    const confirmed = row[8];
+
+    if (confirmed === true || confirmed === "Yes") {
+      received += amount;
+    }
+  });
+
+  // Выплаты
+  expenses.slice(1).forEach(row => {
+    const amount = Number(row[6]) || 0;
+    const status = row[7];
+
+    if (status === "Paid") {
+      paid += amount;
+    }
+  });
 
   const dashboard = ss.getSheetByName(SHEETS.DASHBOARD);
 
-  dashboard.getRange("B18").setValue(cash);
-  dashboard.getRange("B19").setValue(totalSales - received);
-  dashboard.getRange("B20").setValue(totalContracts - paid);
-  dashboard.getRange("B21").setValue(cash + received - paid);
+  dashboard.getRange("B18").setValue(cash);           // текущий баланс
+  dashboard.getRange("B19").setValue(received);       // inflow
+  dashboard.getRange("B20").setValue(paid);           // outflow
+  dashboard.getRange("B21").setValue(cash);           // net cash (реальный)
 }
 
 
 
-// PROFITABILITY
+// =========================
+// PROFITABILITY (ИСПРАВЛЕНО)
+// =========================
 
 function getProfitStats() {
   const ss = SpreadsheetApp.getActive();
-
   const dashboard = ss.getSheetByName(SHEETS.DASHBOARD);
 
-  const revenue = dashboard.getRange("B7").getValue();
-  const expenses = dashboard.getRange("B14").getValue();
+  const revenue = dashboard.getRange("B7").getValue();   // Sales
+  const expenses = dashboard.getRange("B14").getValue(); // Paid expenses
 
   const profit = revenue - expenses;
 
@@ -138,35 +192,42 @@ function getProfitStats() {
   dashboard.getRange("B25").setValue(expenses);
   dashboard.getRange("B26").setValue(profit);
 
-  if (expenses > 0) {
-    dashboard.getRange("B27").setValue(profit / expenses);
+  // ❗ ИСПРАВЛЕНИЕ: ROI теперь считается правильно
+  const projects = ss.getSheetByName(SHEETS.PROJECTS).getDataRange().getValues();
+
+  let totalInvestment = 0;
+  projects.slice(1).forEach(row => {
+    totalInvestment += Number(row[5]) || 0;
+  });
+
+  if (totalInvestment > 0) {
+    dashboard.getRange("B27").setValue(profit / totalInvestment);
   }
 }
 
 
-// VAT 
-function getVATStats(){
 
-const ss = SpreadsheetApp.getActive();
+// =========================
+// VAT
+// =========================
 
-const vat = ss.getSheetByName("VAT").getDataRange().getValues();
+function getVATStats() {
+  const ss = SpreadsheetApp.getActive();
+  const vat = ss.getSheetByName("VAT").getDataRange().getValues();
 
-let incoming = 0;
-let outgoing = 0;
-let payable = 0;
+  let incoming = 0;
+  let outgoing = 0;
+  let payable = 0;
 
-vat.slice(1).forEach(row =>{
+  vat.slice(1).forEach(row => {
+    incoming += Number(row[2]) || 0;
+    outgoing += Number(row[3]) || 0;
+    payable += Number(row[4]) || 0;
+  });
 
-incoming += Number(row[2]) || 0;
-outgoing += Number(row[3]) || 0;
-payable += Number(row[4]) || 0;
+  const dashboard = ss.getSheetByName(SHEETS.DASHBOARD);
 
-});
-
-const dashboard = ss.getSheetByName(SHEETS.DASHBOARD);
-
-dashboard.getRange("B30").setValue(incoming);
-dashboard.getRange("B31").setValue(outgoing);
-dashboard.getRange("B32").setValue(payable);
-
+  dashboard.getRange("B30").setValue(incoming);
+  dashboard.getRange("B31").setValue(outgoing);
+  dashboard.getRange("B32").setValue(payable);
 }

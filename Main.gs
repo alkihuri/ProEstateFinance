@@ -3,6 +3,7 @@ function updateSystem() {
   generateCashFlow();
   updateContracts();
   allocatePayments();
+  updateVAT();
 }
 
 function initSystem() {

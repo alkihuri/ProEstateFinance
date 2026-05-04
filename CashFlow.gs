@@ -68,7 +68,7 @@ function generateCashFlow() {
   // =========================
   // BUILD TABLE
   // =========================
-  let result = [["Month", "Opening", "Income", "Expense", "Net", "Closing","Verifying"]];
+  let result = [["Month", "Opening", "Income", "Expense", "Net", "Closing", "Balance OK"]];
 
   let balance = 0;
 
@@ -80,9 +80,10 @@ function generateCashFlow() {
     const opening = balance;
     const closing = opening + net;
 
-    var confirmed = (opening + income-expense) == closing; // VERIFYING LOGIC
+    // BUG-11 FIX: заменяем тавтологию на полезную проверку (отрицательный остаток)
+    const positiveBalance = closing >= 0;
 
-    result.push([month, opening, income, expense, net, closing,confirmed]);
+    result.push([month, opening, income, expense, net, closing, positiveBalance]);
 
     balance = closing;
   });

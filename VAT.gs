@@ -3,28 +3,39 @@ function updateVAT() {
 
   const payments = ss.getSheetByName(SHEETS.PAYMENTS).getDataRange().getValues();
   const expenses = ss.getSheetByName(SHEETS.EXPENSES).getDataRange().getValues();
-  const vatSheet = ss.getSheetByName("VAT");
+  const sales = ss.getSheetByName(SHEETS.SALES).getDataRange().getValues();
+  const vatSheet = ss.getSheetByName(SHEETS.VAT);
 
   // =========================
-  // ❗ FIX 1: ОЧИСТКА ЛИСТА
+  // BUG-01 FIX: строим карту Unit → Project из листа Sales
+  // (Client Payments хранит Unit в col[3], а не Project в col[2])
+  // =========================
+  const unitProjectMap = {};
+  sales.slice(1).forEach(row => {
+    const unit = row[3];
+    const project = row[2];
+    if (unit && project) unitProjectMap[unit] = project;
+  });
+
+  // =========================
+  // ОЧИСТКА ЛИСТА
   // =========================
   if (vatSheet.getLastRow() > 1) {
-    vatSheet.getRange(2, 1, vatSheet.getLastRow(), 7).clearContent();
+    vatSheet.getRange(2, 1, vatSheet.getLastRow() - 1, 7).clearContent();
   }
 
   let monthlyData = {};
 
   // =========================
-  // INCOMING VAT (EXPENSES)
+  // INCOMING VAT (EXPENSES — входящий НДС от подрядчиков)
   // =========================
   expenses.slice(1).forEach(row => {
-    const date = row[8];          // Payment Date (ВАЖНО!)
-    const project = row[2];
+    const date = row[8];          // Payment Date
+    const project = row[2];       // Project ID — корректен для Expenses
     const amount = Number(row[6]) || 0;
     const status = row[7];
 
-    // ❗ только оплаченные
-    if (status !== "Paid") return;
+    if (status !== PAID_STATUS) return;
     if (!date || amount === 0) return;
 
     const d = new Date(date);
@@ -37,24 +48,26 @@ function updateVAT() {
       monthlyData[month][project] = { incoming: 0, outgoing: 0 };
     }
 
-    monthlyData[month][project].incoming += amount * 21 / 121;
+    monthlyData[month][project].incoming += amount * VAT_RATE;
   });
 
   // =========================
-  // OUTGOING VAT (PAYMENTS)
+  // OUTGOING VAT (PAYMENTS — исходящий НДС от клиентов)
   // =========================
   payments.slice(1).forEach(row => {
     const date = row[1];
-    const project = row[2];
+    const unit = row[3];           // BUG-01 FIX: используем Unit (col[3]) для поиска проекта
     const amount = Number(row[5]) || 0;
     const confirmed = row[8];
 
-    // ❗ только подтвержденные
-    if (!(confirmed === true || confirmed === "Yes")) return;
+    if (!(confirmed === true || confirmed === CONFIRMED_YES)) return;
     if (!date || amount === 0) return;
 
     const d = new Date(date);
     if (isNaN(d)) return;
+
+    // BUG-01 FIX: получаем Project ID через Unit→Sales map
+    const project = unitProjectMap[unit] || "Unknown";
 
     const month = Utilities.formatDate(d, "GMT", "yyyy-MM");
 
@@ -63,7 +76,7 @@ function updateVAT() {
       monthlyData[month][project] = { incoming: 0, outgoing: 0 };
     }
 
-    monthlyData[month][project].outgoing += amount * 21 / 121;
+    monthlyData[month][project].outgoing += amount * VAT_RATE;
   });
 
   // =========================

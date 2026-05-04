@@ -1,5 +1,7 @@
+// BUG-10 FIX: добавлено zero-padding (было "2026-5", стало "2026-05")
+// Делегируем к formatMonth() из CashFlow.gs (одна точка форматирования)
 function getMonth(date) {
-  return date.getFullYear() + "-" + (date.getMonth() + 1);
+  return formatMonth(date);
 }
 
 

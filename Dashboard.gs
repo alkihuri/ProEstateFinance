@@ -6,6 +6,7 @@ function updateDashboard() {
   getCashStats();
   getProfitStats();
   getVATStats();
+  getCommittedCostStats();  // BUG-12 FIX: вызываем здесь, чтобы B33-B36 обновлялись при любом вызове updateDashboard()
 }
 
 
@@ -56,8 +57,7 @@ function getSalesStats() {
     const status = row[8];
 
     // считаем только подписанные сделки
-    if (status === "Signed" || status === "Closed") {
-      totalSales += price;
+    if (status === "Signed" || status === "Closed") {      totalSales += price;
     }
   });
 
@@ -66,7 +66,7 @@ function getSalesStats() {
     const amount = Number(row[5]) || 0;
     const confirmed = row[8];
 
-    if (confirmed === true || confirmed === "Yes") {
+    if (confirmed === true || confirmed === CONFIRMED_YES) {
       totalReceived += amount;
     }
   });
@@ -110,7 +110,7 @@ function getExpenseStats() {
     const amount = Number(row[6]) || 0;
     const status = row[7];
 
-    if (status === "Paid") {
+    if (status === PAID_STATUS) {
       totalPaid += amount;
     }
   });
@@ -150,7 +150,7 @@ function getCashStats() {
     const amount = Number(row[5]) || 0;
     const confirmed = row[8];
 
-    if (confirmed === true || confirmed === "Yes") {
+    if (confirmed === true || confirmed === CONFIRMED_YES) {
       received += amount;
     }
   });
@@ -160,7 +160,7 @@ function getCashStats() {
     const amount = Number(row[6]) || 0;
     const status = row[7];
 
-    if (status === "Paid") {
+    if (status === PAID_STATUS) {
       paid += amount;
     }
   });
@@ -213,7 +213,7 @@ function getProfitStats() {
 
 function getVATStats() {
   const ss = SpreadsheetApp.getActive();
-  const vat = ss.getSheetByName("VAT").getDataRange().getValues();
+  const vat = ss.getSheetByName(SHEETS.VAT).getDataRange().getValues();
 
   let incoming = 0;
   let outgoing = 0;

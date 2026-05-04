@@ -1,36 +1,12 @@
 function allocatePayments() {
   const ss = SpreadsheetApp.getActive();
-  const paymentsSheet = ss.getSheetByName(SHEETS.PAYMENTS);
-  const salesSheet = ss.getSheetByName(SHEETS.SALES);
-
-  const payments = paymentsSheet.getDataRange().getValues();
-  const sales = salesSheet.getDataRange().getValues();
-
-  for (let i = 1; i < payments.length; i++) {
-    const client = payments[i][2];
-    const project = payments[i][3];
-    const amount = payments[i][5];
-
-    for (let j = 1; j < sales.length; j++) {
-      const saleClient = sales[j][1];
-      const saleProject = sales[j][2];
-
-      if (client === saleClient && project === saleProject) {
-        // логика распределения
-      }
-    }
-  }
-}
-
-function allocatePayments() {
-  const ss = SpreadsheetApp.getActive();
 
   const sales = ss.getSheetByName(SHEETS.SALES).getDataRange().getValues();
   const payments = ss.getSheetByName(SHEETS.PAYMENTS).getDataRange().getValues();
-  const sheet = ss.getSheetByName(SHEETS.PAYMANET_ALLOCATION);
+  const sheet = ss.getSheetByName(SHEETS.PAYMENT_ALLOCATION);  // BUG-06 FIX: исправлена опечатка
 
   // =========================
-  // 1. Подготовка Sales
+  // 1. Подготовка Sales (только активные сделки, FIFO по дате договора)
   // =========================
   let clientSales = {};
 
@@ -42,6 +18,7 @@ function allocatePayments() {
     const status = row[8];
 
     if (status !== "Signed" && status !== "Closed") return;
+    if (!saleId || !client || amount === 0) return;
 
     if (!clientSales[client]) clientSales[client] = [];
 
@@ -69,7 +46,7 @@ function allocatePayments() {
     const confirmed = row[8];
     const date = row[1];
 
-    if (!(confirmed === true || confirmed === "Yes")) return;
+    if (!(confirmed === true || confirmed === CONFIRMED_YES)) return;
     if (!client || amount === 0) return;
 
     let remainingPayment = amount;

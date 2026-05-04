@@ -18,7 +18,7 @@ function updateContracts() {
     const status = row[7];
 
     // только оплаченные
-    if (status !== "Paid") return;
+    if (status !== PAID_STATUS) return;
     if (!contractId) return;
 
     if (!contractPayments[contractId]) {
@@ -37,6 +37,13 @@ function updateContracts() {
     const row = contracts[i];
 
     const contractId = row[0];
+    // BUG-07 FIX: пропускаем пустые строки и строки с ошибками формул (#N/A и т.д.)
+    // Пишем пустые значения, чтобы сохранить выравнивание строк
+    if (!contractId || String(contractId).startsWith('#')) {
+      result.push(['', '', '', '']);
+      continue;
+    }
+
     const contractAmount = Number(row[4]) || 0;
 
     const paid = contractPayments[contractId] || 0;

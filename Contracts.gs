@@ -69,3 +69,99 @@ function updateContracts() {
   // =========================
   contractsSheet.getRange(2, 6, result.length, 4).setValues(result);
 }
+
+
+function generateContractBurndown() {
+  const ss = SpreadsheetApp.getActive();
+
+  const expenses = ss.getSheetByName(SHEETS.EXPENSES).getDataRange().getValues();
+  const contracts = ss.getSheetByName(SHEETS.CONTRACTS).getDataRange().getValues();
+  const sheet = ss.getSheetByName(SHEETS.CONTRACT_BURN);
+
+  let data = {};
+  let contractMap = {};
+
+  // =========================
+  // 1. Map contracts
+  // =========================
+  contracts.slice(1).forEach(row => {
+    const id = row[0];
+
+    contractMap[id] = {
+      project: row[1],
+      amount: Number(row[4]) || 0
+    };
+  });
+
+  // =========================
+  // 2. Expenses aggregation
+  // =========================
+  expenses.slice(1).forEach(row => {
+    const contractId = row[4];
+    const amount = Number(row[6]) || 0;
+    const status = row[7];
+    const date = row[8];
+
+    if (status !== "Paid") return;
+    if (!contractId || !date) return;
+
+    const d = new Date(date);
+    if (isNaN(d)) return;
+
+    const month = formatMonth(d);
+
+    if (!data[contractId]) data[contractId] = {};
+    if (!data[contractId][month]) data[contractId][month] = 0;
+
+    data[contractId][month] += amount;
+  });
+
+  // =========================
+  // 3. Build table
+  // =========================
+  let result = [[
+    "Month",
+    "Contract",
+    "Project",
+    "Amount",
+    "Monthly Paid",
+    "Paid To Date",
+    "Remaining",
+    "% Complete"
+  ]];
+
+  Object.keys(data).forEach(contractId => {
+    let cumulative = 0;
+    const months = Object.keys(data[contractId]).sort();
+
+    months.forEach(month => {
+      const monthlyPaid = data[contractId][month];
+      cumulative += monthlyPaid;
+
+      const contractAmount = contractMap[contractId]?.amount || 0;
+      const remaining = contractAmount - cumulative;
+
+      let percent = 0;
+      if (contractAmount > 0) {
+        percent = cumulative / contractAmount;
+      }
+
+      result.push([
+        month,
+        contractId,
+        contractMap[contractId]?.project || "",
+        contractAmount,
+        monthlyPaid,
+        cumulative,
+        remaining,
+        percent
+      ]);
+    });
+  });
+
+  // =========================
+  // 4. Write
+  // =========================
+  sheet.clearContents();
+  sheet.getRange(1, 1, result.length, result[0].length).setValues(result);
+}

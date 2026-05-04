@@ -4,6 +4,8 @@ function updateReceivables() {
   const sales = ss.getSheetByName(SHEETS.SALES).getDataRange().getValues();
   const allocations = ss.getSheetByName(SHEETS.PAYMENT_ALLOCATION).getDataRange().getValues();
   const sheet = ss.getSheetByName(SHEETS.RECEIVABLES);
+  const clients = ss.getSheetByName(SHEETS.CLIENTS).getDataRange().getValues();
+  const units = ss.getSheetByName(SHEETS.UNITS).getDataRange().getValues();
 
   // =========================
   // BUG-03 FIX: суммируем аллоцированные платежи ПО СДЕЛКЕ (не по клиенту)
@@ -20,13 +22,26 @@ function updateReceivables() {
   // =========================
   // 2. Build receivables per sale
   // =========================
-  let result = [["Client", "Project", "Unit", "Sale", "Paid", "Outstanding", "Status"]];
+  let result = [["Client", "Project", "Unit", "Sale", "Paid", "Outstanding", "Status", "Detailed info"]];
 
   sales.slice(1).forEach(row => {
     const saleId = row[0];
     const client = row[1];
+    const clientName = findClientValue(client,clients,1)
     const project = row[2];
     const unit = row[3];
+    
+    
+
+    const unitName = 
+                  findClientValue(unit, units, 2) 
+                  +
+                  ", "
+                  +
+                  findClientValue(unit, units, 3);
+
+
+
     const saleAmount = Number(row[4]) || 0;
     const status = row[8];
 
@@ -40,7 +55,9 @@ function updateReceivables() {
     if (paid > 0 && outstanding > 0) state = "Partial";
     if (outstanding <= 0) state = "Paid";
 
-    result.push([client, project, unit, saleAmount, paid, outstanding, state]);
+    var detailedInfo =  clientName +  ": " + unitName;
+
+    result.push([client, project, unit, saleAmount, paid, outstanding, state,detailedInfo]);
   });
 
   // =========================

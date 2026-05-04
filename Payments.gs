@@ -81,3 +81,85 @@ function allocatePayments() {
   sheet.clearContents();
   sheet.getRange(1, 1, result.length, result[0].length).setValues(result);
 }
+
+function updatePaymentSchedule() {
+  const ss = SpreadsheetApp.getActive();
+
+  const scheduleSheet = ss.getSheetByName(SHEETS.PAYMENT_SCHEDULE);
+  const allocationsSheet = ss.getSheetByName(SHEETS.PAYMENT_ALLOCATION);
+
+  const schedule = scheduleSheet.getDataRange().getValues();
+  const allocations = allocationsSheet.getDataRange().getValues();
+
+  // =========================
+  // 1. Группируем allocations по sale
+  // =========================
+  let saleAllocations = {};
+
+  allocations.slice(1).forEach(row => {
+    const saleId = row[1];
+    const amount = Number(row[3]) || 0;
+
+    if (!saleAllocations[saleId]) saleAllocations[saleId] = 0;
+    saleAllocations[saleId] += amount;
+  });
+
+  // =========================
+  // 2. Группируем schedule по sale
+  // =========================
+  let saleSchedules = {};
+
+  for (let i = 1; i < schedule.length; i++) {
+    const saleId = schedule[i][1];
+    const dueDate = new Date(schedule[i][4]);
+
+    if (!saleSchedules[saleId]) saleSchedules[saleId] = [];
+
+    saleSchedules[saleId].push({
+      index: i,
+      dueDate,
+      amount: Number(schedule[i][5]) || 0,
+      paid: 0
+    });
+  }
+
+  // сортировка по due date
+  Object.keys(saleSchedules).forEach(sale => {
+    saleSchedules[sale].sort((a, b) => a.dueDate - b.dueDate);
+  });
+
+  // =========================
+  // 3. Allocation по schedule
+  // =========================
+  Object.keys(saleSchedules).forEach(saleId => {
+    let remaining = saleAllocations[saleId] || 0;
+
+    saleSchedules[saleId].forEach(item => {
+      if (remaining <= 0) return;
+
+      const paid = Math.min(item.amount, remaining);
+
+      item.paid = paid;
+      remaining -= paid;
+    });
+  });
+
+  // =========================
+  // 4. Запись обратно
+  // =========================
+  for (let saleId in saleSchedules) {
+    saleSchedules[saleId].forEach(item => {
+      const row = item.index;
+
+      const remaining = item.amount - item.paid;
+
+      let status = "Unpaid";
+      if (item.paid > 0 && remaining > 0) status = "Partial";
+      if (remaining <= 0) status = "Paid";
+
+      scheduleSheet.getRange(row + 1, 7).setValue(item.paid);
+      scheduleSheet.getRange(row + 1, 8).setValue(remaining);
+      scheduleSheet.getRange(row + 1, 9).setValue(status);
+    });
+  }
+}

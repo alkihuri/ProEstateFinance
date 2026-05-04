@@ -19,7 +19,7 @@ function generateCashFlow() {
     const confirmed = row[8]; // ✅ FIX: confirmed в колонке 8 (не 9!)
 
     // ❗ ФИЛЬТР: только подтвержденные платежи
-    if (!(confirmed === true || confirmed === "Yes")) return;
+    if (!(confirmed === true || confirmed === CONFIRMED_YES)) return;
 
     if (!date || amount === 0) return;
 
@@ -44,7 +44,7 @@ function generateCashFlow() {
     const status = row[7];   // Status
 
     // ❗ ФИЛЬТР: только реально оплаченные
-    if (status !== "Paid") return;
+    if (status !== PAID_STATUS) return;
 
     if (!date || amount === 0) return;
 

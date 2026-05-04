@@ -15,23 +15,7 @@ function findClientValue(searchKey, clientsData, columnIndex) {
 }
 
 function formatFixedWidth(value, width) {
-    let str = String(value || "");
-    if (str.length > width) str = str.substring(0, width - 3) + "...";
-    return str.padEnd(width);
-    }
-
-
-
-
-    function checkSheets() {
-  const ss = SpreadsheetApp.getActive();
-  const sheets = ss.getSheets();
-  
-  Logger.log("=== Существующие листы ===");
-  sheets.forEach(sheet => {
-    Logger.log(`- ${sheet.getName()}`);
-  });
-  
-  Logger.log(`\nИщем "${SHEETS.PAYMENT_SCHEDULE}": ${ss.getSheetByName(SHEETS.PAYMENT_SCHEDULE) ? "найден" : "НЕ НАЙДЕН"}`);
-  Logger.log(`Ищем "${SHEETS.PAYMENT_ALLOCATION}": ${ss.getSheetByName(SHEETS.PAYMENT_ALLOCATION) ? "найден" : "НЕ НАЙДЕН"}`);
+  let str = String(value || "");
+  if (str.length > width) str = str.substring(0, width - 3) + "...";
+  return str.padEnd(width);
 }

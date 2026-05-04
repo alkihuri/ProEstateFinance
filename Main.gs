@@ -3,7 +3,7 @@ function updateSystem() {
   _run("updateVAT", updateVAT);
   _run("updateContracts", updateContracts);
   _run("allocatePayments", allocatePayments);
-  _run("updatePaymetnSchedule",updatePaymentSchedule);
+  _run("updatePaymentSchedule", updatePaymentSchedule);
   _run("updateReceivables", updateReceivables);
   _run("generateCashFlow", generateCashFlow);
   _run("updateDashboard", updateDashboard);  // последним — читает все обновлённые листы

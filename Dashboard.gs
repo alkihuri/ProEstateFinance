@@ -25,7 +25,8 @@ function getProjectOverview() {
   projects.slice(1).forEach(row => {
     const status = row[2];
 
-    if (status === "Construction") active++;
+    // Используем ACTIVE_PROJECT_STATUSES из Config.gs (включает "Pause", "Construction", "Active")
+    if (ACTIVE_PROJECT_STATUSES.includes(status)) active++;
     if (status === "Completed") completed++;
   });
 
@@ -57,7 +58,8 @@ function getSalesStats() {
     const status = row[8];
 
     // считаем только подписанные сделки
-    if (status === "Signed" || status === "Closed") {      totalSales += price;
+    if (status === "Signed" || status === "Closed") {
+      totalSales += price;
     }
   });
 

@@ -91,6 +91,8 @@ function updatePaymentSchedule() {
   const schedule = scheduleSheet.getDataRange().getValues();
   const allocations = allocationsSheet.getDataRange().getValues();
 
+  const today = new Date();
+
   // =========================
   // 1. Группируем allocations по sale
   // =========================
@@ -145,21 +147,31 @@ function updatePaymentSchedule() {
   });
 
   // =========================
-  // 4. Запись обратно
+  // 4. Batch-запись (оптимизация: одна операция на весь диапазон)
   // =========================
+  const totalRows = schedule.length - 1;
+  if (totalRows <= 0) return;
+
+  // Готовим массив обновлений [paid, remaining, status, overdue]
+  const updates = new Array(totalRows).fill(null).map(() => ['', '', '', '']);
+
   for (let saleId in saleSchedules) {
     saleSchedules[saleId].forEach(item => {
-      const row = item.index;
-
+      const rowIdx = item.index - 1; // 0-based для массива
       const remaining = item.amount - item.paid;
 
       let status = "Unpaid";
       if (item.paid > 0 && remaining > 0) status = "Partial";
       if (remaining <= 0) status = "Paid";
 
-      scheduleSheet.getRange(row + 1, 7).setValue(item.paid);
-      scheduleSheet.getRange(row + 1, 8).setValue(remaining);
-      scheduleSheet.getRange(row + 1, 9).setValue(status);
+      // Overdue flag: просрочена, если дата прошла И не оплачена полностью
+      const isOverdue = (item.dueDate < today) && (status !== "Paid");
+      const overdueFlag = isOverdue ? "Overdue" : "";
+
+      updates[rowIdx] = [item.paid, remaining, status, overdueFlag];
     });
   }
+
+  // Записываем 4 колонки (7,8,9,10) одним вызовом
+  scheduleSheet.getRange(2, 7, totalRows, 4).setValues(updates);
 }

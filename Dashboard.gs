@@ -231,3 +231,45 @@ function getVATStats() {
   dashboard.getRange("B31").setValue(outgoing);
   dashboard.getRange("B32").setValue(payable);
 }
+
+function getCommittedCostStats() {
+  const ss = SpreadsheetApp.getActive();
+
+  const contracts = ss.getSheetByName(SHEETS.CONTRACTS).getDataRange().getValues();
+  const budget = ss.getSheetByName(SHEETS.BUDGET).getDataRange().getValues();
+
+  let totalContracts = 0;
+  let totalPaid = 0;
+  let totalRemaining = 0;
+  let totalBudget = 0;
+
+  // =========================
+  // Contracts
+  // =========================
+  contracts.slice(1).forEach(row => {
+    const amount = Number(row[4]) || 0;
+    const paid = Number(row[5]) || 0;
+    const remaining = Number(row[6]) || 0;
+
+    totalContracts += amount;
+    totalPaid += paid;
+    totalRemaining += remaining;
+  });
+
+  // =========================
+  // Budget
+  // =========================
+  budget.slice(1).forEach(row => {
+    totalBudget += Number(row[7]) || 0;
+  });
+
+  const dashboard = ss.getSheetByName(SHEETS.DASHBOARD);
+
+  dashboard.getRange("B33").setValue(totalContracts);
+  dashboard.getRange("B34").setValue(totalPaid);
+  dashboard.getRange("B35").setValue(totalRemaining);
+
+  if (totalBudget > 0) {
+    dashboard.getRange("B36").setValue(totalContracts / totalBudget);
+  }
+}

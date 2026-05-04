@@ -11,5 +11,7 @@ const SHEETS = {
   BANK: "Bank Accounts",
   CASHFLOW: "Cash Flow",
   DASHBOARD: "Dashboard",
-  VAT : "VAT"
+  VAT : "VAT",
+  RECEIVABLES : "Receivables",
+  PAYMANET_ALLOCATION : "Payment Allocations"
 };

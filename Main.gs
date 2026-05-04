@@ -4,6 +4,8 @@ function updateSystem() {
   updateContracts();
   allocatePayments();
   updateVAT();
+  getCommittedCostStats();
+  updateReceivables();
 }
 
 function initSystem() {

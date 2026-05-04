@@ -1,6 +1,6 @@
 # ProEstateFinance — Overview
 
-> Последнее обновление: 2026-05-04. Комплексный аудит системы: Cards 1–10 (кроме №7), XLSX-таблица (15 листов), код (.gs), ТЗ.
+> Последнее обновление: 2026-05-04 (rev 2). Исправлены BUG-01—BUG-03, BUG-05—BUG-07, BUG-10—BUG-12 в скриптах. Добавлены: `Schema.gs`, `setupTriggers()`, именованные константы.
 
 ---
 
@@ -12,7 +12,8 @@
 | ❌ Числятся выполненными, но НЕ реализованы | **1** (Card 8 — Budget↔Contract mapping) |
 | ⚠️ Выполнены частично / с замечаниями | **3** (Cards 3, 5, 10) |
 | 🔴 Открытая карточка (Card 7) блокирует | Cards 15, 17, 18 |
-| 🐛 Новых багов найдено | **9** (критических: 4, важных: 5) |
+| 🐛 Багов найдено | **12** (исправлено скриптами: **9**, требует ручных данных: **3**) |
+| 🔧 Скриптов изменено | **10 файлов** + создан `Schema.gs` |
 
 ---
 
@@ -185,102 +186,67 @@
 
 | Файл | Функция | Статус | Проблемы |
 |---|---|---|---|
-| `Config.gs` | Реестр `SHEETS` | ✅ Обновлён | Добавлены `RECEIVABLES`, `PAYMANET_ALLOCATION`. ❗ Typo: `PAYMANET` вместо `PAYMENT` |
-| `Main.gs` | `updateSystem()` | ✅ Полный | Вызывает: Dashboard, CashFlow, Contracts, Payments, **VAT**, CommittedCost, Receivables. ⚠️ `updateDashboard()` вызывается ДО `updateVAT()` — VAT KPIs на Dashboard отстают на 1 цикл |
-| `Triggers.gs` | `onEdit()` | ✅ Работает | Без изменений |
-| `Dashboard.gs` | 6 + 1 блоков KPI | ✅ Улучшен | Добавлена `getCommittedCostStats()` (B33–B36). ⚠️ Revenue = 0 если Sales не заполнен. ⚠️ P001 "Pause" не считается как Active |
-| `CashFlow.gs` | `generateCashFlow()` | ✅ Работает | Verifying-колонка — тавтология. Месяцы в XLSX хранятся как даты |
-| `Contracts.gs` | `updateContracts()` | ✅ Write-back работает | Status = строка. Убран мёртвый код. Данные D1 некорректны (400%) |
-| `Payments.gs` | `allocatePayments()` | ⚠️ Работает с дублем | **Два объявления функции** в одном файле — первое (пустое) теоретически создаёт путаницу. JS использует последнее. Typo в `PAYMANET_ALLOCATION` |
-| `VAT.gs` | `updateVAT()` | ⚠️ Работает с багом | ✅ Вызывается. ❗ `row[2]` для платежей = Client ID, не Project ID → VAT по клиентам неверный |
-| `Receivables.gs` | `updateReceivables()` | ⚠️ Новый, с логическим багом | Агрегирует платежи по клиенту (сумма всех платежей клиента vs одна сделка) → Outstanding всегда отрицательный для клиентов с несколькими платежами |
-| `Utils.gs` | `getMonth()`, `findClientValue()` | ⚠️ Дубль + новая | `getMonth()` дублирует `formatMonth()` без zero-padding. `findClientValue()` — новая утилита для поиска клиента |
+| `Config.gs` | Реестр `SHEETS` + константы | ✅ Исправлен | ~~Typo PAYMANET~~ → `PAYMENT_ALLOCATION`. Добавлены: `VAT_RATE`, `PAID_STATUS`, `CONFIRMED_YES`, `SIGNED_STATUSES`, `ACTIVE_PROJECT_STATUSES` |
+| `Main.gs` | `updateSystem()` | ✅ Исправлен | ~~Неверный порядок~~ → VAT первым, Dashboard последним. Добавлен `_run()` с try/catch. `getCommittedCostStats()` убран отсюда (перенесён в updateDashboard) |
+| `Triggers.gs` | `onEdit()` + `setupTriggers()` | ✅ Улучшен | Добавлен `setupTriggers()` — ежедневный триггер на 06:00 UTC |
+| `Dashboard.gs` | 6 + 1 блоков KPI | ✅ Исправлен | ~~BUG-12~~: `getCommittedCostStats()` теперь вызывается внутри `updateDashboard()`. Строковые литералы → именованные константы |
+| `CashFlow.gs` | `generateCashFlow()` | ✅ Исправлен | ~~BUG-11~~: Verifying → `Balance OK` (`closing >= 0`) |
+| `Contracts.gs` | `updateContracts()` | ✅ Улучшен | ~~BUG-07~~: Добавлен guard для пустых строк и строк с `#N/A`. Использует `PAID_STATUS` |
+| `Payments.gs` | `allocatePayments()` | ✅ Исправлен | ~~BUG-02~~: Удалена заглушка-дубль. ~~BUG-06~~: `PAYMANET_ALLOCATION` → `PAYMENT_ALLOCATION`. Использует `CONFIRMED_YES` |
+| `VAT.gs` | `updateVAT()` | ✅ Исправлен | ~~BUG-01~~: Project ID теперь определяется через Unit→Sales join. Использует `VAT_RATE`, `PAID_STATUS`, `CONFIRMED_YES` |
+| `Receivables.gs` | `updateReceivables()` | ✅ Исправлен | ~~BUG-03~~: Агрегация платежей ПО СДЕЛКЕ через `Payment Allocations` (не по клиенту) |
+| `Utils.gs` | `getMonth()`, `findClientValue()` | ✅ Исправлен | ~~BUG-10~~: `getMonth()` делегирует к `formatMonth()` (zero-padding) |
+| `Schema.gs` | Карта колонок `COLS` | ✅ Создан | Новый файл: 0-based индексы всех 14 листов для устранения хардкода |
 
 ---
 
-## 4. Баги — актуальный список (2026-05-04)
+## 4. Баги — актуальный список (2026-05-04 rev 2)
 
-### 🔴 Критические (влияют на корректность данных)
+### ✅ Исправлено в скриптах
 
-**BUG-01: VAT.gs — Client ID вместо Project ID**
-```js
-// VAT.gs — для Client Payments row[2] = Client, не Project!
-// Текущий код:
-const project = row[2];  // → C001, C002, C003...
-// Исправление — нужно получить проект из Unit→Sales:
-// Либо добавить Project в Client Payments sheet,
-// либо джойнить через Sales/Units
-```
+**BUG-01: VAT.gs — Client ID вместо Project ID** → **ИСПРАВЛЕНО**
+- `VAT.gs`: добавлен Unit→Sales join, Project ID теперь берётся из Sales (`unitProjectMap[unit]`)
 
-**BUG-02: Payments.gs — дублирование функции**
-```js
-// В файле объявлено ДВЕ функции allocatePayments()
-// Первая (строки 1–23) — заглушка, вторая (строки 25–106) — рабочая
-// Удалить первую (строки 1–23)
-```
+**BUG-02: Payments.gs — дублирование функции** → **ИСПРАВЛЕНО**
+- Заглушка (строки 1–23) удалена. Осталась только рабочая реализация.
 
-**BUG-03: Receivables.gs — агрегация по клиенту, не по сделке**
-```js
-// Текущая логика: paid = сумма ВСЕХ платежей клиента
-// Правильная логика: paid = сумма аллоцированных платежей К ДАННОЙ СДЕЛКЕ
-// Нужно использовать Payment Allocations sheet вместо прямой агрегации
-```
+**BUG-03: Receivables.gs — агрегация по клиенту, не по сделке** → **ИСПРАВЛЕНО**
+- `updateReceivables()` теперь читает `Payment Allocations` и агрегирует `Allocated` по `Sale ID`
+
+**BUG-05: Main.gs — порядок вызовов (VAT после Dashboard)** → **ИСПРАВЛЕНО**
+- Новый порядок: `updateVAT()` → `updateContracts()` → `allocatePayments()` → `updateReceivables()` → `generateCashFlow()` → `updateDashboard()`
+- Добавлен `_run()` с try/catch: ошибка в одном шаге не останавливает остальные
+
+**BUG-06: Config.gs — typo PAYMANET_ALLOCATION** → **ИСПРАВЛЕНО**
+- `PAYMANET_ALLOCATION` → `PAYMENT_ALLOCATION`. Все ссылки обновлены.
+
+**BUG-07: Contracts D5–D15 с `#N/A`** → **ЧАСТИЧНО ИСПРАВЛЕНО** *(скриптовая часть)*
+- `updateContracts()`: добавлен guard — строки с `!contractId` или `#` пишут пустые значения вместо мусора
+- Причина `#N/A` в таблице (формула VLOOKUP) требует ручного исправления
+
+**BUG-10: `getMonth()` в Utils.gs не использует zero-padding** → **ИСПРАВЛЕНО**
+- `getMonth()` теперь вызывает `formatMonth()` из `CashFlow.gs`
+
+**BUG-11: Verifying в Cash Flow — тавтология** → **ИСПРАВЛЕНО**
+- Заменено на `closing >= 0` (`Balance OK`): `true` = положительный баланс, `false` = уходим в минус
+- Переименовано в `"Balance OK"` в заголовке
+
+**BUG-12: `updateDashboard()` не вызывает `getCommittedCostStats()`** → **ИСПРАВЛЕНО**
+- `getCommittedCostStats()` перенесён внутрь `updateDashboard()`. B33–B36 обновляются при любом вызове.
+
+### 🔴 Требует ручного исправления данных (скрипты не могут)
 
 **BUG-04: Contract D1 — переплата 400%**
 - EX1 + EX3 + EX4 = 400K vs D1 Contract Amount = 100K
-- Нужно: или увеличить Contract Amount D1, или скорректировать расходы
+- Нужно: вручную исправить Contract Amount D1 до 400K, либо скорректировать записи в Expenses
 
-### 🟡 Важные
+**BUG-08: Units — несоответствие ключей** *(ручное)*
+- `Units.Project ID` = "Budva Residence" (полное имя) vs `Sales.Project ID` = "P001" (короткий ID)
+- Нужно: вручную исправить Units.Project ID на коды P001/P002/P003
 
-**BUG-05: Main.gs — порядок вызовов (VAT после Dashboard)**
-```js
-// Текущий порядок:
-updateDashboard();   // → читает VAT из прошлого цикла
-...
-updateVAT();         // → обновляет VAT
-
-// Правильный порядок:
-updateVAT();         // ПЕРВЫМ
-updateDashboard();   // потом Dashboard читает актуальный VAT
-```
-
-**BUG-06: Config.gs — typo PAYMANET_ALLOCATION**
-```js
-// Было:
-PAYMANET_ALLOCATION: "Payment Allocations"
-// Исправить на:
-PAYMENT_ALLOCATION: "Payment Allocations"
-```
-
-**BUG-07: Contracts D5–D15 с `#N/A`**
-- Ошибка формулы в колонке Project ID для строк D5–D15
-- `updateContracts()` пишет в строки 2–(N+1), где N = contracts.length-1 (все строки включая #N/A)
-- Нужно: очистить строки D5–D15 или добавить фильтр в скрипте
-
-**BUG-08: Units — несоответствие ключей**
-- `Units.Project ID` = "Budva Residence" (полное имя)
-- `Sales.Project ID` = "P001" (короткий ID)
-- Связь Units ↔ Sales ↔ Payments невозможна без джойна через имя
-
-**BUG-09: Data integrity — суммы платежей в 20× больше цен продаж**
-- Sales: 5 сделок на общую сумму 6.05M
-- Client Payments: общая сумма ~120M+
-- Receivables и Allocations дают бессмысленные результаты
-- Нужно: либо скорректировать суммы платежей, либо заполнить реальные сделки
-
-### 🟢 Архитектурные
-
-**BUG-10: `getMonth()` в Utils.gs не использует zero-padding**
-- Возвращает "2026-5" вместо "2026-05"
-- Дублирует `formatMonth()` из CashFlow.gs
-- Удалить или унифицировать
-
-**BUG-11: Verifying в Cash Flow — тавтология (always TRUE)**
-- `confirmed = (opening + income - expense) == closing` — всегда true по построению
-
-**BUG-12: `updateDashboard()` не вызывает `getCommittedCostStats()` напрямую**
-- `getCommittedCostStats()` вызывается из `updateSystem()` ПОСЛЕ `updateDashboard()`
-- Если кто-то вызовет `updateDashboard()` напрямую — B33–B36 не обновятся
+**BUG-09: Data integrity — суммы платежей в 20× больше цен продаж** *(ручное)*
+- Sales: 5 сделок на сумму 6.05M; Client Payments: ~120M+
+- Нужно: вручную скорректировать суммы платежей или заполнить реальные сделки в Sales
 
 ---
 
@@ -296,7 +262,7 @@ PAYMENT_ALLOCATION: "Payment Allocations"
 | 6 | **Expenses / AP** | ✅ Частично | 6 расходов, все Paid. Нет forecast payables, burn-down |
 | 7 | **Banking / Treasury** | ⚠️ Каркас | 1 счёт, 350K EUR. Нет мультивалюты, liquidity |
 | 8 | **Cash Flow Engine** | ✅ Работает | 5 месяцев. ⚠️ Месяцы как Excel dates. Нет cumulative отдельной колонки |
-| 9 | **VAT Module** | ⚠️ Работает с багом | VAT считается, вызывается. ❗ Client ID вместо Project ID в VAT sheet |
+| 9 | **VAT Module** | ✅ Исправлен | ~~Client ID вместо Project ID~~ — исправлено: Unit→Sales join. VAT вызывается первым в pipeline. |
 | 10 | **KPI Dashboard** | ✅ Улучшен | 6 + Committed Cost блоков. Нет: Sales%, BudgetExec%, CostToComplete |
 | 11 | **Monthly Reporting** | ❌ Не реализовано | — |
 | 12 | **Automation / AI** | ❌ Не реализовано | — |
@@ -309,26 +275,32 @@ PAYMENT_ALLOCATION: "Payment Allocations"
 
 | Функция | Подтверждение |
 |---|---|
-| VAT pipeline интегрирован | `Main.gs`: `updateVAT()` вызывается |
+| VAT pipeline интегрирован | `Main.gs`: `updateVAT()` вызывается первым |
 | VAT без дублей | `VAT.gs`: `clearContent()` перед записью |
+| VAT корректный Project ID | `VAT.gs`: Unit→Sales join для определения проекта |
 | Cash Flow фильтрация | Только confirmed + Paid |
-| Contracts write-back | paid/remaining/percent/status строками |
-| Committed Cost KPI | `getCommittedCostStats()` → B33–B36 |
+| Cash Flow Balance OK | Колонка `Balance OK` = `closing >= 0` (заменила тавтологию) |
+| Contracts write-back | paid/remaining/percent/status строками; guard для #N/A строк |
+| Committed Cost KPI | `getCommittedCostStats()` вызывается из `updateDashboard()` (B33–B36) |
 | Revenue фильтр (Signed/Closed) | `getSalesStats()` |
 | ROI formula | `profit / totalInvestment` |
-| Receivables sheet | `updateReceivables()` → лист с 5 строками |
-| Payment Allocations | FIFO аллокация → лист с 5 записями |
+| Receivables per sale | `updateReceivables()`: аллокации по сделке через Payment Allocations |
+| Payment Allocations | FIFO аллокация → лист с записями |
 | Clients лист заполнен | 14 клиентов с данными |
+| Именованные константы | `Config.gs`: `VAT_RATE`, `PAID_STATUS`, `CONFIRMED_YES`, `SIGNED_STATUSES` |
+| Schema.gs | Новый файл: карта колонок всех 14 листов |
+| Scheduled trigger | `setupTriggers()` в `Triggers.gs` |
+| Error handling | `_run()` с try/catch в `Main.gs` |
 
-### ⚠️ Выполнено с замечаниями
+### ⚠️ Требует ручного исправления данных
 
 | Функция | Проблема |
 |---|---|
-| Units types | Typo "Pakinkg" |
-| Contracts status | D1 = 400% overpay; D5–D15 = #N/A |
-| VAT by project | Client ID вместо Project ID для платежей |
-| Payment Allocation | Неправильные суммы платежей → большинство платежей не аллоцируется |
-| Receivables | Агрегация по клиенту, не по сделке → неверный Outstanding |
+| Units types | Typo "Pakinkg" → нужно вручную исправить на "Parking" |
+| Contract D1 | 400% overpay — вручную исправить Contract Amount или Expenses |
+| Contracts D5–D15 | `#N/A` в Project ID — вручную удалить формулу или строки |
+| Payment amounts | Суммы платежей ~120M+ vs продажи 6M — вручную скорректировать |
+| Units Project ID | Полное имя вместо кода — вручную заменить на P001/P002/P003 |
 
 ### ❌ Не реализовано или выполнено ошибочно
 
@@ -346,7 +318,7 @@ PAYMENT_ALLOCATION: "Payment Allocations"
 | Advanced KPIs (Card 17) | ❌ Частично (Committed Cost есть, остальные нет) |
 | Liquidity forecast (Card 18) | ❌ Не реализовано |
 | Monthly reporting (Card 19) | ❌ Не реализовано |
-| Scheduled triggers (Card 27) | ❌ Не реализовано |
+| Scheduled triggers (Card 27) | ✅ `setupTriggers()` добавлен в Triggers.gs |
 
 ---
 
@@ -354,33 +326,32 @@ PAYMENT_ALLOCATION: "Payment Allocations"
 
 ### 7.1 Доработки по выполненным карточкам
 
-**Card 1 (VAT pipeline):**
-- Переместить `updateVAT()` ПЕРВЫМ в `updateSystem()` — иначе Dashboard читает старый VAT
-- Исправить `const project = row[2]` в VAT.gs: для Client Payments добавить Project ID в колонку, либо определять проект через Unit→Sales join
+**Card 1 (VAT pipeline):** ✅ Исправлено
+- `updateVAT()` теперь первый в `updateSystem()`, Dashboard читает актуальный VAT
+- Project ID для платежей теперь корректен (Unit→Sales join)
 
 **Card 3 (Revenue):**
-- Суммы в `Client Payments` нужно синхронизировать с реальными ценами из `Sales`
+- Суммы в `Client Payments` нужно синхронизировать с реальными ценами из `Sales` *(ручное)*
 - Добавить fallback: если `Sales` пуст → Revenue = сумма confirmed payments
 
 **Card 5 (Data cleanup):**
-- Заполнить Budget для P002, P003 (критично для Cost Control)
-- Исправить "Pakinkg" → "Parking" во всех юнитах
-- Удалить строки D5–D15 из Contracts (или исправить формулу Project ID)
-- P001 изменить Status с "Pause" на реальный ("Construction" или добавить поддержку "Pause" в скрипты)
+- ✅ *Скрипты*: Contracts guard для пустых строк добавлен
+- *(Ручное)* Заполнить Budget для P002, P003
+- *(Ручное)* Исправить "Pakinkg" → "Parking" во всех юнитах
+- *(Ручное)* Удалить строки D5–D15 из Contracts или исправить формулу Project ID
+- *(Ручное)* P001 изменить Status с "Pause" на реальный
 
 **Card 6 (Contracts):**
-- Исправить Contract Amount D1 (должно быть 400K или скорректировать расходы)
-- Перенести `getCommittedCostStats()` внутрь `updateDashboard()` или вызывать ДО `updateDashboard()`
+- ✅ `getCommittedCostStats()` теперь внутри `updateDashboard()`
+- *(Ручное)* Исправить Contract Amount D1 (должно быть 400K)
 
 **Card 8 (Budget↔Contract mapping) — ПЕРЕОТКРЫТЬ:**
-- Карточка отмечена как выполненная, но в коде нет ни одной строки реализации
-- Минимальная реализация: добавить в `Contracts` колонку "Budget Category", связывающую контракт с категорией бюджета
-- Или создать `Schema.gs` с маппингом
+- Карточка отмечена как выполненная, но в коде нет реализации
+- ✅ Создан `Schema.gs` — первый шаг к маппингу
+- Следующий шаг: добавить колонку "Budget Category" в Contracts, написать `buildBudgetContractMap()`
 
-**Card 10 (allocatePayments):**
-- Удалить первую заглушку `allocatePayments()` из `Payments.gs` (строки 1–23)
-- Исправить typo `PAYMANET_ALLOCATION` → `PAYMENT_ALLOCATION` в Config.gs
-- Пересчитать `Receivables` через `Payment Allocations`, а не через прямую агрегацию
+**Card 10 (allocatePayments):** ✅ Исправлено
+- ~~Дубль удалён~~, ~~PAYMANET_ALLOCATION исправлен~~, Receivables теперь использует Payment Allocations
 
 ### 7.2 Какие карточки брать в работу следующими
 
@@ -389,17 +360,16 @@ PAYMENT_ALLOCATION: "Payment Allocations"
 | Приоритет | Card | Причина | Зависит от Card 7? |
 |---|---|---|---|
 | 🔴 1 | **Переоткрыть Card 8** | Закрыта ошибочно, блокирует cost control | Нет |
-| 🔴 2 | **BUG-03** (Receivables fix) | Текущие данные бессмысленны | Нет |
-| 🔴 3 | **BUG-01** (VAT Project fix) | VAT отчёт некорректен | Нет |
-| �� 4 | **Card 13** (Budget variance) | Зависит от Card 8 mapping | Нет |
-| 🟡 5 | **Card 14** (Cost per sqm) | Простая метрика, быстро | Нет |
-| 🟡 6 | **Card 11** (Payment Schedule) | Нужен для клиентов | Нет |
-| 🟡 7 | **Card 16** (Project filter) | Разблокирует многие KPI | Нет |
-| 🟡 8 | **Card 7** (Burn-down) | Открытая, нужна для Card 15, 18 | — |
-| 🔵 9 | **Card 15** (Cost to Complete) | Нужен Card 7 + Card 13 | **Да** |
-| 🔵 10 | **Card 17** (Advanced KPIs) | Нужен Card 7 (burn-down KPI) | **Да (частично)** |
-| 🔵 11 | **Card 18** (Liquidity forecast) | Нужен Card 7 + Card 15 | **Да** |
-| 🔵 12 | **Card 12** (Aging receivables) | Нужен реальные данные receivables | Нет |
+| 🔴 2 | *(Ручное)* Исправить данные (BUG-09) | Суммы платежей — Receivables бессмысленны | Нет |
+| 🟡 3 | **Card 13** (Budget variance) | Зависит от Card 8 mapping | Нет |
+| 🟡 4 | **Card 14** (Cost per sqm) | Простая метрика, быстро | Нет |
+| 🟡 5 | **Card 11** (Payment Schedule) | Нужен для клиентов | Нет |
+| 🟡 6 | **Card 16** (Project filter) | Разблокирует многие KPI | Нет |
+| 🟡 7 | **Card 7** (Burn-down) | Открытая, нужна для Card 15, 18 | — |
+| 🔵 8 | **Card 15** (Cost to Complete) | Нужен Card 7 + Card 13 | **Да** |
+| 🔵 9 | **Card 17** (Advanced KPIs) | Нужен Card 7 (burn-down KPI) | **Да (частично)** |
+| 🔵 10 | **Card 18** (Liquidity forecast) | Нужен Card 7 + Card 15 | **Да** |
+| 🔵 11 | **Card 12** (Aging receivables) | Нужны реальные данные receivables | Нет |
 
 **Карточки, БЛОКИРУЕМЫЕ Card 7:**
 - Card 15 (Cost to Complete) — нужны данные о remaining contracts
@@ -411,10 +381,10 @@ PAYMENT_ALLOCATION: "Payment Allocations"
 | Тип расхождения | Описание |
 |---|---|
 | **ТЗ требует — в таблице нет** | Два уровня контрактов (budget items ↔ contract packages). Aging receivables (buckets 0-30/31-60/90+). Liquidity position. Multiple currencies. |
-| **В таблице есть — в ТЗ не детализировано** | Лист `Receivables` (новый). Лист `Payment Allocations` (новый). `getCommittedCostStats()`. |
+| **В таблице есть — в ТЗ не детализировано** | Лист `Receivables` (новый). Лист `Payment Allocations` (новый). `getCommittedCostStats()`. `Schema.gs`. |
 | **Карточки закрыты, но не реализованы** | Card 8 (Budget↔Contract mapping) — нет кода. |
-| **Данные не соответствуют реальности** | Суммы платежей (120M+) vs цены продаж (6M) — расхождение 20×. D1 overpay 400%. P002/P003 budget пуст. |
-| **Архитектурный долг** | Units.Project ID ≠ Sales.Project ID (имя vs код). VAT sheet хранит Client ID вместо Project ID. Два `allocatePayments()` в одном файле. |
+| **Данные не соответствуют реальности** *(ручное)* | Суммы платежей (120M+) vs цены продаж (6M) — расхождение 20×. D1 overpay 400%. P002/P003 budget пуст. Units.Project ID = полное имя. |
+| ~~Архитектурный долг~~ → исправлено | ~~Два `allocatePayments()` в одном файле~~ ✅. ~~Typo PAYMANET~~ ✅. ~~VAT sheet Client ID~~ ✅. ~~Receivables агрегация по клиенту~~ ✅ |
 
 ### 7.4 Предложения по улучшению процесса
 
@@ -425,22 +395,19 @@ PAYMENT_ALLOCATION: "Payment Allocations"
    - Contract Amount vs sum(Expenses) для каждого контракта (overpay flag)
    - Наличие #N/A в ключевых колонках
 
-3. **Зафиксировать Units.Project ID как P001/P002/P003** (не полное имя) — это разблокирует корректные джойны между листами.
+3. **Зафиксировать Units.Project ID как P001/P002/P003** (не полное имя) — это разблокирует корректные джойны между листами. *(Ручное исправление данных)*
 
-4. **Добавить `Schema.gs`** с картой колонок вместо хардкода индексов:
-   ```js
-   const COLS = {
-     EXPENSES: { DATE:1, PROJECT:2, AMOUNT:6, STATUS:7, PAYMENT_DATE:8 },
-     PAYMENTS: { DATE:1, CLIENT:2, AMOUNT:5, CONFIRMED:8 },
-     SALES: { CLIENT:1, PROJECT:2, UNIT:3, PRICE:4, STATUS:8 }
-   };
-   ```
+4. ✅ **`Schema.gs` создан** — файл с картой колонок всех 14 листов. Использовать `COLS.SALES.PRICE` вместо `row[4]` в новом коде.
 
 5. **Создать автоматический аудит-лист** — `Audit` лист, куда при каждом запуске `updateSystem()` записывается: дата, количество обработанных записей, найденные аномалии (overpay, #N/A, пустые обязательные поля).
 
 6. **Регрессионные тесты для данных** — Google Apps Script позволяет создать `Test.gs` с набором assertions. Запускать после каждого изменения скриптов.
 
-7. **Унифицировать ключи между листами**: везде использовать Project ID = P001/P002/P003, Unit ID = U001…U018, Client ID = C001…C014.
+7. **Унифицировать ключи между листами**: везде использовать Project ID = P001/P002/P003, Unit ID = U001…U018, Client ID = C001…C014. *(Ручное исправление данных)*
+
+8. ✅ **`setupTriggers()` добавлен** в `Triggers.gs` — запустите один раз из Apps Script Editor для установки ежедневного триггера в 06:00 UTC.
+
+9. ✅ **try/catch добавлен** в `Main.gs` (`_run()`) — ошибка в одном шаге не останавливает весь pipeline.
 
 ---
 
@@ -456,10 +423,11 @@ PAYMENT_ALLOCATION: "Payment Allocations"
 | `Client Payments` | 15 | ✅ Заполнен | Нет (ручной) |
 | `Budget` | 29 (P001 only) | ⚠️ Частично | Нет (ручной) |
 | `Contractors` | 3 | ⚠️ Минимально | Нет (ручной) |
-| `Contracts` | 4 + 11(#N/A) | ⚠️ С ошибками | ✅ `updateContracts()` |
+| `Contracts` | 4 + 11(#N/A) | ⚠️ С ошибками данных | ✅ `updateContracts()` + guard для пустых строк |
 | `Expenses` | 6 | ✅ Заполнен | Нет (ручной) |
 | `Receivables` | 5 | ✅ Заполнен | ✅ `updateReceivables()` |
 | `Bank Accounts` | 1 | ⚠️ Минимально | Нет (ручной) |
 | `Cash Flow` | 5 | ✅ Обновляется | ✅ `generateCashFlow()` |
-| `VAT` | 16 | ⚠️ Баг с Project ID | ✅ `updateVAT()` |
-| `Dashboard` | KPI cells | ✅ Обновляется | ✅ `updateDashboard()` + `getCommittedCostStats()` |
+| `VAT` | 16 | ✅ Исправлен | ✅ `updateVAT()` — Project ID через Unit→Sales join |
+| `Dashboard` | KPI cells | ✅ Обновляется | ✅ `updateDashboard()` включает `getCommittedCostStats()` |
+| `Schema.gs` | — | ✅ Создан | Карта колонок `COLS` для всех 14 листов |

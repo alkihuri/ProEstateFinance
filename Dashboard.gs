@@ -25,8 +25,7 @@ function getProjectOverview() {
   projects.slice(1).forEach(row => {
     const status = row[2];
 
-    // Используем ACTIVE_PROJECT_STATUSES из Config.gs (включает "Pause", "Construction", "Active")
-    if (ACTIVE_PROJECT_STATUSES.includes(status)) active++;
+    if (status === "Construction") active++;
     if (status === "Completed") completed++;
   });
 
@@ -58,8 +57,7 @@ function getSalesStats() {
     const status = row[8];
 
     // считаем только подписанные сделки
-    if (status === "Signed" || status === "Closed") {
-      totalSales += price;
+    if (status === "Signed" || status === "Closed") {      totalSales += price;
     }
   });
 
@@ -123,6 +121,9 @@ function getExpenseStats() {
   dashboard.getRange("B13").setValue(totalContracts);
   dashboard.getRange("B14").setValue(totalPaid);
   dashboard.getRange("B15").setValue(totalBudget - totalPaid);
+  dashboard.getRange("B16").setValue(getFutureIncome());
+  dashboard.getRange("B17").setValue(getRemainingBudget());
+  dashboard.getRange("B18").setValue(getCashGap());
 }
 
 
@@ -169,10 +170,10 @@ function getCashStats() {
 
   const dashboard = ss.getSheetByName(SHEETS.DASHBOARD);
 
-  dashboard.getRange("B18").setValue(cash);           // текущий баланс
-  dashboard.getRange("B19").setValue(received);       // inflow
-  dashboard.getRange("B20").setValue(paid);           // outflow
-  dashboard.getRange("B21").setValue(cash);           // net cash (реальный)
+  dashboard.getRange("B21").setValue(cash);           // текущий баланс
+  dashboard.getRange("B22").setValue(received);       // inflow
+  dashboard.getRange("B23").setValue(paid);           // outflow
+  dashboard.getRange("B24").setValue(cash);           // net cash (реальный)
 }
 
 
@@ -190,9 +191,9 @@ function getProfitStats() {
 
   const profit = revenue - expenses;
 
-  dashboard.getRange("B24").setValue(revenue);
-  dashboard.getRange("B25").setValue(expenses);
-  dashboard.getRange("B26").setValue(profit);
+  dashboard.getRange("B27").setValue(revenue);
+  dashboard.getRange("B28").setValue(expenses);
+  dashboard.getRange("B29").setValue(profit);
 
   // ❗ ИСПРАВЛЕНИЕ: ROI теперь считается правильно
   const projects = ss.getSheetByName(SHEETS.PROJECTS).getDataRange().getValues();
@@ -203,7 +204,7 @@ function getProfitStats() {
   });
 
   if (totalInvestment > 0) {
-    dashboard.getRange("B27").setValue(profit / totalInvestment);
+    dashboard.getRange("B30").setValue(profit / totalInvestment);
   }
 }
 
@@ -229,9 +230,9 @@ function getVATStats() {
 
   const dashboard = ss.getSheetByName(SHEETS.DASHBOARD);
 
-  dashboard.getRange("B30").setValue(incoming);
-  dashboard.getRange("B31").setValue(outgoing);
-  dashboard.getRange("B32").setValue(payable);
+  dashboard.getRange("B33").setValue(incoming);
+  dashboard.getRange("B34").setValue(outgoing);
+  dashboard.getRange("B35").setValue(payable);
 }
 
 function getCommittedCostStats() {
@@ -267,11 +268,51 @@ function getCommittedCostStats() {
 
   const dashboard = ss.getSheetByName(SHEETS.DASHBOARD);
 
-  dashboard.getRange("B33").setValue(totalContracts);
-  dashboard.getRange("B34").setValue(totalPaid);
-  dashboard.getRange("B35").setValue(totalRemaining);
+  dashboard.getRange("B36").setValue(totalContracts);
+  dashboard.getRange("B37").setValue(totalPaid);
+  dashboard.getRange("B38").setValue(totalRemaining);
 
   if (totalBudget > 0) {
-    dashboard.getRange("B36").setValue(totalContracts / totalBudget);
+    dashboard.getRange("B39").setValue(totalContracts / totalBudget);
   }
+}
+
+
+function getFutureIncome() {
+  const data = SpreadsheetApp.getActive()
+    .getSheetByName(SHEETS.PAYMENT_SCHEDULE)
+    .getDataRange().getValues();
+
+  const today = new Date();
+
+  let future = 0;
+
+  data.slice(1).forEach(row => {
+    const due = new Date(row[4]);
+    const remaining = Number(row[7]) || 0;
+
+    if (due >= today) {
+      future += remaining;
+    }
+  });
+
+  return future;
+}
+
+function getRemainingBudget() {
+  const data = SpreadsheetApp.getActive()
+    .getSheetByName("Budget Variance")
+    .getDataRange().getValues();
+
+  let total = 0;
+
+  data.slice(1).forEach(row => {
+    total += Number(row[7]) || 0;
+  });
+
+  return total;
+}
+
+function getCashGap() {
+  return getFutureIncome() - getRemainingBudget();
 }

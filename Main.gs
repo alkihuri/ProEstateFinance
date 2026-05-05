@@ -3,11 +3,12 @@ function updateSystem() {
   _run("updateVAT", updateVAT);
   _run("updateContracts", updateContracts);
   _run("allocatePayments", allocatePayments);
-  _run("updatePaymentSchedule", updatePaymentSchedule);
+  _run("updatePaymetnSchedule",updatePaymentSchedule);
   _run("updateReceivables", updateReceivables);
   _run("generateCashFlow", generateCashFlow);
   _run("updateDashboard", updateDashboard);  // последним — читает все обновлённые листы
   _run("updateContractBurn", generateContractBurndown);
+  _run("updateAging", generateAging);
 }
 
 // BUG-12 FIX: getCommittedCostStats() теперь внутри updateDashboard() (Dashboard.gs)

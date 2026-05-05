@@ -102,7 +102,7 @@ function generateContractBurndown() {
     const status = row[7];
     const date = row[8];
 
-    if (status !== PAID_STATUS) return;
+    if (status !== "Paid") return;
     if (!contractId || !date) return;
 
     const d = new Date(date);

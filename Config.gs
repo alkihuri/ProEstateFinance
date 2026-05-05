@@ -13,9 +13,11 @@ const SHEETS = {
   DASHBOARD: "Dashboard",
   VAT: "VAT",
   RECEIVABLES: "Receivables",
-  PAYMENT_ALLOCATION: "Payment Allocations",  // FIX BUG-06: исправлена опечатка PAYMANET → PAYMENT
+  PAYMENT_ALLOCATION: "Payment Allocations",   
   CONTRACT_BURN : "Contract Burn",
-  PAYMENT_SCHEDULE :"Payment Schedule"
+  PAYMENT_SCHEDULE :"Payment Schedule",
+  AGING : "Aging",
+  BUDJET_VARIANCE : "Budget Variance"
 };
 
 // =========================

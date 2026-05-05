@@ -91,8 +91,6 @@ function updatePaymentSchedule() {
   const schedule = scheduleSheet.getDataRange().getValues();
   const allocations = allocationsSheet.getDataRange().getValues();
 
-  const today = new Date();
-
   // =========================
   // 1. Группируем allocations по sale
   // =========================
@@ -147,31 +145,107 @@ function updatePaymentSchedule() {
   });
 
   // =========================
-  // 4. Batch-запись (оптимизация: одна операция на весь диапазон)
+  // 4. Запись обратно
   // =========================
-  const totalRows = schedule.length - 1;
-  if (totalRows <= 0) return;
-
-  // Готовим массив обновлений [paid, remaining, status, overdue]
-  const updates = new Array(totalRows).fill(null).map(() => ['', '', '', '']);
-
   for (let saleId in saleSchedules) {
     saleSchedules[saleId].forEach(item => {
-      const rowIdx = item.index - 1; // 0-based для массива
+      const row = item.index;
+
       const remaining = item.amount - item.paid;
 
       let status = "Unpaid";
       if (item.paid > 0 && remaining > 0) status = "Partial";
       if (remaining <= 0) status = "Paid";
 
-      // Overdue flag: просрочена, если дата прошла И не оплачена полностью
-      const isOverdue = (item.dueDate < today) && (status !== "Paid");
-      const overdueFlag = isOverdue ? "Overdue" : "";
-
-      updates[rowIdx] = [item.paid, remaining, status, overdueFlag];
+      scheduleSheet.getRange(row + 1, 7).setValue(item.paid);
+      scheduleSheet.getRange(row + 1, 8).setValue(remaining);
+      scheduleSheet.getRange(row + 1, 9).setValue(status);
     });
   }
+}
 
-  // Записываем 4 колонки (7,8,9,10) одним вызовом
-  scheduleSheet.getRange(2, 7, totalRows, 4).setValues(updates);
+
+function generateAging() {
+  const ss = SpreadsheetApp.getActive();
+
+  const scheduleSheet = ss.getSheetByName(SHEETS.PAYMENT_SCHEDULE);
+  const sheet = ss.getSheetByName(SHEETS.AGING);
+  const clients = ss.getSheetByName(SHEETS.CLIENTS).getDataRange().getValues();
+
+  const data = scheduleSheet.getDataRange().getValues();
+
+  let resultMap = {};
+
+  const today = new Date();
+
+  data.slice(1).forEach(row => {
+    const client = row[2];
+    const saleId = row[1];
+    const project = row[3];
+    const dueDate = new Date(row[4]);
+    const remaining = Number(row[7]) || 0;
+
+    if (remaining <= 0 || isNaN(dueDate)) return;
+
+    const diffDays = Math.floor((today - dueDate) / (1000 * 60 * 60 * 24));
+
+    if (diffDays < 0) return; // не просрочено
+
+    const key = client + "|" + saleId;
+
+    if (!resultMap[key]) {
+      resultMap[key] = {
+        client,
+        saleId,
+        project,
+        total: 0,
+        b0: 0,
+        b30: 0,
+        b60: 0,
+        b90: 0
+      };
+    }
+
+    resultMap[key].total += remaining;
+
+    if (diffDays <= 30) resultMap[key].b0 += remaining;
+    else if (diffDays <= 60) resultMap[key].b30 += remaining;
+    else if (diffDays <= 90) resultMap[key].b60 += remaining;
+    else resultMap[key].b90 += remaining;
+  });
+
+  // формируем таблицу
+  let result = [[
+    "Client ID",
+    "Client Name",
+    "Sale ID",
+    "Project",
+    "Total",
+    "0-30",
+    "31-60",
+    "61-90",
+    "90+"
+  ]];
+
+
+  Object.values(resultMap).forEach(r => {
+
+
+
+  var clientName = findClientValue(r.client,clients,1);
+    result.push([
+      r.client,
+      clientName,
+      r.saleId,
+      r.project,
+      r.total,
+      r.b0,
+      r.b30,
+      r.b60,
+      r.b90
+    ]);
+  });
+
+  sheet.clearContents();
+  sheet.getRange(1, 1, result.length, result[0].length).setValues(result);
 }

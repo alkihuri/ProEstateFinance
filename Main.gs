@@ -9,6 +9,7 @@ function updateSystem() {
   _run("updateDashboard", updateDashboard);  // последним — читает все обновлённые листы
   _run("updateContractBurn", generateContractBurndown);
   _run("updateAging", generateAging);
+  _run("generateBudjetVariance",generateBudgetVariance);
 }
 
 // BUG-12 FIX: getCommittedCostStats() теперь внутри updateDashboard() (Dashboard.gs)

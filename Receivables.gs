@@ -6,10 +6,7 @@ function updateReceivables() {
   const sheet = ss.getSheetByName(SHEETS.RECEIVABLES);
   const clients = ss.getSheetByName(SHEETS.CLIENTS).getDataRange().getValues();
   const units = ss.getSheetByName(SHEETS.UNITS).getDataRange().getValues();
-
-  // =========================
-  // BUG-03 FIX: суммируем аллоцированные платежи ПО СДЕЛКЕ (не по клиенту)
-  // Используем Payment Allocations, которые записывает allocatePayments()
+ 
   // =========================
   const saleAllocated = {};
   allocations.slice(1).forEach(row => {

@@ -7,6 +7,8 @@ function updateDashboard() {
   getProfitStats();
   getVATStats();
   getCommittedCostStats();  // BUG-12 FIX: вызываем здесь, чтобы B33-B36 обновлялись при любом вызове updateDashboard()
+  updateDataPerSqm();
+  getCostToComplete();
 }
 
 
@@ -275,6 +277,20 @@ function getCommittedCostStats() {
   if (totalBudget > 0) {
     dashboard.getRange("B39").setValue(totalContracts / totalBudget);
   }
+
+  
+}
+
+function updateDataPerSqm()
+{
+
+  const ss = SpreadsheetApp.getActive();
+  const dashboard = ss.getSheetByName(SHEETS.DASHBOARD);
+  const sqm = getCostPerSqmStats();
+  dashboard.getRange("B44").setValue(sqm.actualPerSqm);
+  dashboard.getRange("B45").setValue(sqm.budgetPerSqm);
+  dashboard.getRange("B46").setValue(sqm.salePerSqm);
+  dashboard.getRange("B47").setValue(sqm.marginPerSqm);
 }
 
 
@@ -301,7 +317,7 @@ function getFutureIncome() {
 
 function getRemainingBudget() {
   const data = SpreadsheetApp.getActive()
-    .getSheetByName("Budget Variance")
+    .getSheetByName(SHEETS.BUDJET_VARIANCE)
     .getDataRange().getValues();
 
   let total = 0;
@@ -316,3 +332,16 @@ function getRemainingBudget() {
 function getCashGap() {
   return getFutureIncome() - getRemainingBudget();
 }
+
+function updateCostToComplete()
+{
+  const ss = SpreadsheetApp.getActive();
+  const dashboard = ss.getSheetByName(SHEETS.DASHBOARD);
+  var ctc = getCostToComplete();
+  dashboard.getRange("B50").setValue(ctc.costToComplete);
+  dashboard.getRange("B51").setValue(ctc.remainingBudget);
+  dashboard.getRange("B52").setValue(ctc.remainingContracts);
+}
+
+
+
